@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic Tac Toe</title>
+  <style>
+    body {
+      background-color: #0f0f0f;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .game-board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 10px;
+      width: 300px;
+      height: 300px;
+    }
+
+    .cell {
+      background-color: #1f1f1f;
+      border: 2px solid #2f2f2f;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 48px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.3s ease;
+    }
+
+    .cell:hover {
+      background-color: #2f2f2f;
+    }
+
+    .winning-cell {
+      background-color: #4caf50 !important;
+    }
+
+    .game-info {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .popup {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px;
+  background-color: #1f1f1f;
+  border: 2px solid #ffffff;
+  border-radius: 14px;
+  z-index: 10;
+  text-align: center;
+  animation: fadeIn 0.5s ease-out forwards;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+    .popup-message {
+      background-color: transparent;
+      color: yellow;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  transition: color 0.3s ease;
+}
+
+.close-btn:hover {
+  color: #ccc;
+}
+
+    .popup button,
+    #restart {
+      margin-top: 10px;
+      padding: 10px 20px;
+      border: none;
+      background: linear-gradient(45deg, red, orange);
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.3s ease;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      border-radius: 5px;
+    }
+
+    .popup button:hover,
+    #restart:hover {
+      background: orange;
+      transform: translateY(-2px);
+    }
+
+    .popup button:active,
+    #restart:active {
+      transform: translateY(0);
+    }
+
+    @media (max-width: 600px) {
+      .game-board {
+        width: 90vw;
+        height: 90vw;
+      }
+
+      .cell {
+        font-size: 10vw;
+      }
+    }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="popup" id="popup"><span class="close-btn" id="close-popup">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"></line>
+    <line x1="6" y1="6" x2="18" y2="18"></line>
+  </svg>
+</span>
+      <p class="popup-message" id="popup-message"></p>
+    </div>
+    <div class="game-board">
+      <div class="cell" data-index="0"></div>
+      <div class="cell" data-index="1"></div>
+      <div class="cell" data-index="2"></div>
+      <div class="cell" data-index="3"></div>
+      <div class="cell" data-index="4"></div>
+      <div class="cell" data-index="5"></div>
+      <div class="cell" data-index="6"></div>
+      <div class="cell" data-index="7"></div>
+      <div class="cell" data-index="8"></div>
+    </div>
+    <div class="game-info">
+      <p id="status">Player X's turn</p>
+      <button id="restart">Restart Game</button>
+    </div>
+  </div>
+
+  <script>
+    const cells = document.querySelectorAll('.cell');
+    const status = document.getElementById('status');
+    const restartBtn = document.getElementById('restart');
+    const popup = document.getElementById('popup');
+    const popupMessage = document.getElementById('popup-message');
+    const closePopupBtn = document.getElementById('close-popup');
+
+    let currentPlayer = 'X';
+    let gameOver = false;
+    let board = ['', '', '', '', '', '', '', '', ''];
+
+    const winningCombinations = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+      [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+      [0, 4, 8], [2, 4, 6] // Diagonals
+    ];
+
+    const moveSound = new Audio('https://www.soundjay.com/button/beep-07.wav');
+    const winSound = new Audio('https://www.soundjay.com/button/beep-05.wav');
+    const drawSound = new Audio('https://www.soundjay.com/button/beep-03.wav');
+
+    function handleCellClick(e) {
+      const index = e.target.dataset.index;
+      if (board[index] !== '' || gameOver) return;
+
+      board[index] = currentPlayer;
+      e.target.textContent = currentPlayer;
+      moveSound.play();
+      if ('vibrate' in navigator) {
+        navigator.vibrate(100);
+      }
+
+      if (checkWin()) {
+        gameOver = true;
+        highlightWinningCells();
+        status.textContent = `Player ${currentPlayer} wins!`;
+        winSound.play();
+        showPopup(`Player ${currentPlayer} wins!`);
+        saveGameState();
+      } else if (checkDraw()) {
+        gameOver = true;
+        status.textContent = 'Draw!';
+        drawSound.play();
+        showPopup('Draw!');
+        saveGameState();
+      } else {
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+        status.textContent = `Player ${currentPlayer}'s turn`;
+        saveGameState();
+      }
+    }
+
+    function checkWin() {
+      return winningCombinations.some(combination => {
+        if (combination.every(index => board[index] === currentPlayer)) {
+          combination.forEach(index => {
+            cells[index].classList.add('winning-cell');
+          });
+          return true;
+        }
+        return false;
+      });
+    }
+
+    function checkDraw() {
+      return board.every(cell => cell !== '');
+    }
+
+    function highlightWinningCells() {
+      winningCombinations.forEach(combination => {
+        if (combination.every(index => board[index] === currentPlayer)) {
+          combination.forEach(index => {
+            cells[index].classList.add('winning-cell');
+          });
+        }
+      });
+    }
+
+    function restartGame() {
+      currentPlayer = 'X';
+      gameOver = false;
+      board = ['', '', '', '', '', '', '', '', ''];
+      cells.forEach(cell => {
+        cell.textContent = '';
+        cell.classList.remove('winning-cell');
+      });
+      status.textContent = "Player X's turn";
+      closePopup();
+      clearGameState();
+    }
+
+    function showPopup(message) {
+      popupMessage.textContent = message;
+      popup.style.display = 'block';
+    }
+
+    function closePopup() {
+      popup.style.display = 'none';
+    }
+
+    function saveGameState() {
+      const gameState = {
+        currentPlayer,
+        board,
+        gameOver,
+        statusText: status.textContent
+      };
+      localStorage.setItem('ticTacToeGameState', JSON.stringify(gameState));
+    }
+
+    function loadGameState() {
+      const savedState = localStorage.getItem('ticTacToeGameState');
+      if (savedState) {
+        const gameState = JSON.parse(savedState);
+        currentPlayer = gameState.currentPlayer;
+        board = gameState.board;
+        gameOver = gameState.gameOver;
+        status.textContent = gameState.statusText;
+
+        cells.forEach((cell, index) => {
+          cell.textContent = board[index];
+          if (cell.textContent === 'X' || cell.textContent === 'O') {
+            cell.classList.add('occupied');
+          }
+        });
+
+        if (gameOver) {
+          highlightWinningCells();
+        }
+      }
+    }
+
+    function clearGameState() {
+      localStorage.removeItem('ticTacToeGameState');
+    }
+
+    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+    restartBtn.addEventListener('click', restartGame);
+    closePopupBtn.addEventListener('click', closePopup);
+
+    // Load the game state when the page is loaded
+    document.addEventListener('DOMContentLoaded', loadGameState);
+  </script>
+</body>
+</html>
